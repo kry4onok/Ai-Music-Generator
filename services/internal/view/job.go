@@ -1,4 +1,4 @@
-package dto
+package view
 
 import (
 	"time"
@@ -20,31 +20,30 @@ type Track struct {
 	ImageURL  *string `json:"image_url,omitempty"`
 
 	IsFavorite bool   `json:"is_favorite"`
-	CreatedAt  string `json:"created_at"` // RFC3339
+	CreatedAt  string `json:"created_at"`
 }
 
 type Job struct {
 	ID     string `json:"id"`
-	Status string `json:"status"` // queued|processing|ready|failed
+	Status string `json:"status"`
 
-	// params
 	Prompt       string  `json:"prompt"`
 	CustomMode   bool    `json:"custom_mode"`
 	Style        *string `json:"style,omitempty"`
 	Title        *string `json:"title,omitempty"`
 	Instrumental bool    `json:"instrumental"`
-	Model        string  `json:"model"`                  // "V4"|"V4_5"|...
-	VocalGender  *string `json:"vocal_gender,omitempty"` // "m"|"f"
+	Model        string  `json:"model"`
+	VocalGender  *string `json:"vocal_gender,omitempty"`
 	NegativeTags *string `json:"negative_tags,omitempty"`
+	SunoTaskID   *string `json:"suno_task_id,omitempty"`
 
 	Tracks []Track `json:"tracks,omitempty"`
 	Error  *string `json:"error,omitempty"`
 
-	CreatedAt string `json:"created_at"` // RFC3339
-	UpdatedAt string `json:"updated_at"` // RFC3339
+	CreatedAt string `json:"created_at"`
+	UpdatedAt string `json:"updated_at"`
 }
 
-// NewTrack — mapper domain.Track -> dto.Track
 func NewTrack(t domain.Track) Track {
 	return Track{
 		ID:          t.ID.String(),
@@ -64,17 +63,16 @@ func NewTrack(t domain.Track) Track {
 	}
 }
 
-// NewJob — mapper domain.Job -> dto.Job
 func NewJob(j domain.Job) Job {
 	tracks := make([]Track, 0, len(j.Tracks))
-	for _, t := range j.Tracks {
-		tracks = append(tracks, NewTrack(t))
+	for _, track := range j.Tracks {
+		tracks = append(tracks, NewTrack(track))
 	}
 
 	var vocal *string
 	if j.Params.VocalGender != nil {
-		v := j.Params.VocalGender.String()
-		vocal = &v
+		value := j.Params.VocalGender.String()
+		vocal = &value
 	}
 
 	return Job{
@@ -89,6 +87,7 @@ func NewJob(j domain.Job) Job {
 		Model:        j.Params.Model.String(),
 		VocalGender:  vocal,
 		NegativeTags: j.Params.NegativeTags,
+		SunoTaskID:   j.SunoTaskID,
 
 		Tracks: tracks,
 		Error:  j.Error,
