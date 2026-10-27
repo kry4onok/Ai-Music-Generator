@@ -1,0 +1,38 @@
+@startuml
+!include <C4/C4_Container>
+
+LAYOUT_WITH_LEGEND()
+UpdateBoundaryStyle("system", $bgColor="#F4F6F8", $borderColor="#A8B4C2")
+UpdateElementStyle("person", $bgColor="#DCEBFF", $fontColor="#172234", $borderColor="#4170A5")
+UpdateElementStyle("container", $bgColor="#EAF2FF", $fontColor="#172234", $borderColor="#4170A5")
+UpdateElementStyle("container_db", $bgColor="#E7F5EF", $fontColor="#172234", $borderColor="#18704D")
+UpdateElementStyle("container_queue", $bgColor="#E7F5EF", $fontColor="#172234", $borderColor="#18704D")
+
+title AI Music Generator — контейнеры и данные прототипа
+
+Person(user, "Пользователь", "Описывает трек и создаёт задачу")
+System_Ext(suno, "Suno API", "Генерация музыки; интеграция запланирована")
+
+System_Boundary(music, "AI Music Generator / Docker Compose") {
+    Container(mobile, "Flutter client", "Flutter", "Заготовка без экранов и запускаемого приложения")
+    Container(nginx, "nginx", "nginx", "Проксирует доступные HTTP-маршруты к API")
+    Container(swagger, "Swagger UI", "OpenAPI", "Просмотр целевого API-контракта")
+    Container(api, "api", "Go / HTTP", "Создаёт задачу, проверяет готовность и callback")
+    Container(worker, "worker", "Go", "Пока только наблюдает за очередью")
+    ContainerQueue(redis, "Redis", "list jobs", "Очередь идентификаторов задач")
+    ContainerDb(postgres, "PostgreSQL", "SQL", "Запущена; хранение задач не подключено")
+    ContainerDb(minio, "MinIO", "S3 / bucket tracks", "Запущен; загрузка аудио не подключена")
+}
+
+Rel(user, nginx, "Создаёт задачу", "HTTP POST /jobs")
+Rel(user, swagger, "Смотрит контракт", "HTTP :8081")
+Rel(nginx, api, "Проксирует запрос", "HTTP")
+Rel(api, redis, "Кладёт ID задачи", "Redis RPUSH")
+Rel(worker, redis, "Смотрит состояние очереди", "Redis LLEN / LRANGE")
+Rel(api, postgres, "Проверка доступности в /ready", "SQL ping")
+Rel(api, minio, "Сохранение файлов — план", "S3")
+Rel(worker, suno, "Запуск генерации — план", "HTTP")
+Rel(suno, api, "Callback: приём есть, обработка — план", "HTTP POST")
+Rel(user, mobile, "Мобильный интерфейс — план", "Flutter")
+
+@enduml

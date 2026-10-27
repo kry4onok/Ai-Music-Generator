@@ -1,0 +1,32 @@
+@startuml
+!include <C4/C4_Container>
+
+LAYOUT_WITH_LEGEND()
+UpdateBoundaryStyle("system", $bgColor="#F4F6F8", $borderColor="#A8B4C2")
+UpdateElementStyle("container", $bgColor="#EAF2FF", $fontColor="#172234", $borderColor="#4170A5")
+UpdateElementStyle("container_db", $bgColor="#E7F5EF", $fontColor="#172234", $borderColor="#18704D")
+UpdateElementStyle("container_queue", $bgColor="#E7F5EF", $fontColor="#172234", $borderColor="#18704D")
+
+title AI Music Generator — прямые вызовы и протоколы
+
+System_Ext(suno, "Suno API", "Внешний сервис; интеграция запланирована")
+System_Boundary(music, "AI Music Generator / текущий прототип") {
+    Container(nginx, "nginx", "HTTP", "Вход на :8088")
+    Container(api, "api", "Go / HTTP", "/health, /ready, POST /jobs, POST /suno/callback")
+    Container(repo, "JobRepo", "Go / заглушка", "CreateJob без записи в БД")
+    Container(worker, "worker", "Go", "Логирует состояние очереди каждые 5 секунд")
+    ContainerQueue(redis, "Redis", "list jobs", "Хранит ID задач")
+    ContainerDb(postgres, "PostgreSQL", "SQL", "Используется только для проверки /ready")
+    ContainerDb(minio, "MinIO", "S3", "Bucket tracks; вызовов из API и worker нет")
+}
+
+Rel(nginx, api, "POST /jobs, /health, /ready, callback", "HTTP")
+Rel(api, repo, "CreateJob", "Go interface")
+Rel(api, redis, "Поставить задачу", "Redis RPUSH jobs")
+Rel(worker, redis, "Наблюдать за очередью", "Redis LLEN / LRANGE")
+Rel(api, postgres, "Проверить /ready", "SQL ping")
+Rel(worker, suno, "Создать музыку — план", "HTTP")
+Rel(suno, api, "Callback: проверка есть, сохранение — план", "HTTP POST")
+Rel(api, minio, "Сохранить аудио — план", "S3")
+
+@enduml
